@@ -22,32 +22,38 @@ async function run() {
     app.post("/processlog", upload.single('file'),  (req, res) => {
       const logArray =  (req.file.buffer.toString()).split(/\r?\n/);
 
-      console.log('Before filtered array: ', logArray);
-      // console.log(logArray)
+      // console.log('Before filtered array: ', logArray);
     
-      if (logArray.length != 0) {
-          let filteredLogArray = logArray.filter(element => { 
-              return logLevel.includes(element.split(' - ')[1].toLowerCase())
-          });
+        if (logArray.length === 0) {
+          return res.send({ errorData: 'invalid file' });
+        }
         
-        filteredLogArray.map(element => {
-          // Math.floor(new Date('2021-08-09T02:12:51.259Z').valueOf())
-          let [timePortion, logStatusPortion] = element.split(' - ')
+        let filteredLogArray = logArray.filter(element => { 
+            return logLevel.includes(element.split(' - ')[1].toLowerCase())
+        });
+        
+        let expectedArray = filteredLogArray.map(element => {
+          let [timePortion, logStatusPortion, otherDetails] = element.split(' - ')
           let stringTimeValue = timePortion.substring(1);
           let formattedTimeStamp = Math.floor(new Date(stringTimeValue).valueOf());
-          console.log('--log status: ', logStatusPortion);
-          return {
+          let formattedOtherDetails = otherDetails.replaceAll('""', '"').slice(0, -1);
+          let detailsJson = JSON.parse(formattedOtherDetails);
+          console.log('json details ', detailsJson.transactionId);
+
+          let expectedValue = {
             "timestamp": formattedTimeStamp,
             "loglevel": logStatusPortion,
+            "transactionId": detailsJson.transactionId,
+            "err": detailsJson.err
           }
+          console.log(expectedValue);
+          return expectedValue;
         });
-     }
+      
+        console.log('Final value', expectedArray);
 
-
-        res.send({file: 'demo file'});
+        res.send({data: expectedArray});
       });
-
-
 
   } 
   
@@ -55,6 +61,6 @@ async function run() {
 
   }
 }
-run().catch(error => console.error(error));
+run().catch(error => console.error({errorData: error}));
 
 app.listen(port, () => console.log(`beansTalkEdu server is running on ${port}`));
